@@ -51,7 +51,7 @@ epoch = args.num_epoch
 save_path = './model_save/'
 
 if not os.path.exists(save_path):
-    os.mkdirs(save_path)
+    os.makedirs(save_path)
 #normalize for ImageNet
 normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
