@@ -25,7 +25,7 @@ os.environ['CUDA_VISIBLE_DEVICES']='0,1'
 
 
 arguments = argparse.ArgumentParser()
-arguments.add_argument('--lr', type=float, default=0.001)
+arguments.add_argument('--lr', type=float, default=0.001)# 1e-5 for swin, 3e-4 for efficientnet_b0
 arguments.add_argument('--momentum', type=float, default=0.9)
 arguments.add_argument('--num_workers', type=int, default=12)
 arguments.add_argument('--batch_size', type=int, default=48)
@@ -40,6 +40,8 @@ arguments.add_argument('--image_base_folder', type=str, default="/../../vox2_cro
 arguments.add_argument('--use_wandb', type=bool, default=False)
 arguments.add_argument('--name', type=str, default="default")
 arguments.add_argument('--mode', type=str, choices=['default', 'test',], default="default")
+
+arguments.add_argument('--eta_min', type=float, default=1e-5)#1e-5 for efficientnet_b0, 1е-6 for swin
 args = arguments.parse_args()
 
 if args.use_wandb:
@@ -193,7 +195,7 @@ def checkpoint(model, my_save_path, epoch, diff_files = False):
 
 scheduler = None
 if args.scheduler == "CosineAnnealingLR":
-    scheduler = CosineAnnealingLR(optimizer, T_max = args.num_epoch * len(train_dataset_loader), eta_min=0.0001)
+    scheduler = CosineAnnealingLR(optimizer, T_max = args.num_epoch * len(train_dataset_loader), eta_min= args.eta_min)
 
 
 
