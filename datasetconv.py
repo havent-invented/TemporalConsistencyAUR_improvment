@@ -4,7 +4,7 @@ import shutil
 data_dir = "./vox2_crop_fps25/"
 out_dir = "./vox2_crop_fps25_2/"
 idx = 0
-mode = 0
+mode = 1
 for i in os.listdir(data_dir):
     general_txt = i
     #if not os.path.exists(f"./vox2_crop_fps25_1/{general_txt}"):

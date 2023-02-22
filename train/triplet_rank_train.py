@@ -36,15 +36,22 @@ arguments.add_argument('--encoder_arc', type=str, choices=["swin_v2_t", "resnet1
 arguments.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default="SGD")
 arguments.add_argument('--scheduler', type=str, choices=['No', 'CosineAnnealingLR',], default="No")
 arguments.add_argument('--add_augs', type=bool, default=False)
-arguments.add_argument('--image_base_folder', type=str, default="../vox2_crop_fps25/")
-
+arguments.add_argument('--image_base_folder', type=str, default="/../../vox2_crop_fps25_2/")
+arguments.add_argument('--use_wandb', type=bool, default=False)
+arguments.add_argument('--name', type=str, default="default")
+arguments.add_argument('--mode', type=str, choices=['default', 'test',], default="default")
 args = arguments.parse_args()
 
+if args.use_wandb:
+    import wandb
+    wandb.init(project="USC_triplet_rank", config=args, name = f"{args.name}")
 
 batch_size = args.batch_size
 epoch = args.num_epoch
-save_path = 'model_save/'
+save_path = './model_save/'
 
+if not os.path.exists(save_path):
+    os.mkdirs(save_path)
 #normalize for ImageNet
 normalize = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
@@ -109,7 +116,9 @@ def tuplet_loss(anchor, close, sequence):
     
 
 torch.manual_seed(args.random_seed)
-combine_sets = CustomDatasetFromImages(transformations, spacing=args.spacing_size, image_base_folder = args.image_base_folder)
+combine_sets = CustomDatasetFromImages(transformations, spacing=args.spacing_size, image_base_folder = args.image_base_folder, datalen = (-1 if args.mode == "default" else 60))
+
+
 train_size = int(0.8 * len(combine_sets))
 test_size = len(combine_sets) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(combine_sets, [train_size, test_size])
@@ -130,7 +139,8 @@ elif args.encoder_arc == "densenet121_encoder":#2016
     model = densenet121_encoder()
 
 elif args.encoder_arc == "swin_v2_t":#2022
-    model = swin_v2_t_encoder()#efficientnet_b0_encoder, efficientnet_b0_encoder,swin_v2_t_encoder#torchvision.models.swin_v2_t()
+    model = swin_v2_t_encoder().requires_grads(True)
+    #efficientnet_b0_encoder, efficientnet_b0_encoder,swin_v2_t_encoder#torchvision.models.swin_v2_t()
 elif args.encoder_arc == "efficientnet_b0":#2019
     model = efficientnet_b0_encoder() #torchvision.models.efficientnet_b0()
 elif args.encoder_arc == "regnet_x_400mf":
@@ -167,10 +177,13 @@ test_loss_list = []
 
 
 
-def checkpoint(model, my_save_path, epoch):
+def checkpoint(model, my_save_path, epoch, diff_files = False):
     print ("save model, current epoch:{0}".format(epoch))    
     save_epoch = epoch + 0
-    final_save_path = my_save_path + '_' + str(save_epoch) + '.pth'
+    if diff_files:
+        final_save_path = my_save_path + '_' + str(save_epoch) + '.pth'
+    else:
+        final_save_path = my_save_path + 'ckpt.pth'
     checkpoint_state = {
             'state_dict' : model.state_dict(), 
             'optimizer' : optimizer.state_dict()
@@ -206,6 +219,8 @@ def train_model(model, epoches):
     total_loss = total_loss * 1.0 / len(train_dataset_loader)
     train_loss_list.append(total_loss)
     print("train loss at the epoch %d is %f"%(epoches, total_loss))
+    wandb.log({"train_loss": total_loss}, step=epoches)
+
 
 
 
@@ -252,6 +267,9 @@ def test_model(model, epoches):
 
         test_acc_list.append(total_acc)
         test_loss_list.append(total_loss)
+        wandb.log({"test_loss": total_loss}, step=epoches)
+        wandb.log({"test_acc": total_acc}, step=epoches)
+        wandb.log({"test_sep_acc": sep_acc}, step=epoches)
         
 
         

@@ -13,30 +13,30 @@ import os, sys
 import torch
 from tqdm import tqdm
 
-image_base_folder = '../vox2_crop_fps25'
+#image_base_folder = '../vox2_crop_fps25'
 
 class CustomDatasetFromImages(Dataset):
-    def __init__(self, transformations, spacing, image_base_folder = '../vox2_crop_fps25'):
+    def __init__(self, transformations, spacing, image_base_folder = '../vox2_crop_fps25', datalen = -1):
         """
         Args:
             csv_path (string): path to csv file
             img_path (string): path to the folder where images are
             transform: pytorch transforms for transforms and tensor conversion
         """
-
+        self.image_base_folder = image_base_folder
         self.seed = np.random.seed(567)
         self.transform = transformations
         # Transforms
         self.to_tensor = transforms.ToTensor()
         # Read the csv file
-        self.video_label = sorted(os.listdir(image_base_folder))
+        self.video_label = sorted(os.listdir(self.image_base_folder))
         frame_index = []
         self.video_label_suff = []
 
         length = spacing * 10 + 1
 
         for video in tqdm(self.video_label):
-            path = image_base_folder + '/' + video
+            path = self.image_base_folder + '/' + video
             frames = sorted(os.listdir(path), key=lambda x: int(x[:-4]))
 
             if len(frames) - length> 0:
@@ -48,6 +48,8 @@ class CustomDatasetFromImages(Dataset):
         self.frame_index = frame_index
         # Calculate len
         self.data_len = len(self.video_label_suff)
+        if datalen != -1:
+            self.data_len = min(self.data_len, datalen)
         self.spacing = spacing
 
 
@@ -58,7 +60,7 @@ class CustomDatasetFromImages(Dataset):
         anchor_index = self.frame_index[video_base_index][video_off]
         pos_index = anchor_index + 1
 
-        path = image_base_folder + '/' + self.video_label_suff[video_base_index]
+        path = self.image_base_folder + '/' + self.video_label_suff[video_base_index]
         frames = sorted(os.listdir(path), key=lambda x: int(x[:-4]))
         random_frame = frames[anchor_index]
         close_frame = frames[pos_index]

@@ -63,13 +63,11 @@ class mobilenet_encoder(nn.Module):
 class swin_v2_t_encoder(nn.Module):
     def __init__(self):
         super(swin_v2_t_encoder, self).__init__()
-        self.model = models.swin_v2_t(pretrained=True)
+        self.model = models.swin_v2_t(weights='DEFAULT')
         self.model.head = nn.Linear(in_features=768, out_features=256, bias=True)
 
     def forward(self, x):
         output = self.model(x)
-        print(self.model)
-        print(output.shape)
         #output = nn.functional.adaptive_avg_pool2d(output, 1).reshape(output.shape[0], -1)
         output = torch.flatten(output, 1)
         #output = self.fc1(output)
@@ -81,7 +79,7 @@ class swin_v2_t_encoder(nn.Module):
 class efficientnet_b0_encoder(nn.Module):
     def __init__(self):
         super(efficientnet_b0_encoder, self).__init__()
-        self.model = torchvision.models.efficientnet_b0(pretrained=True)
+        self.model = torchvision.models.efficientnet_b0(weights='DEFAULT')
         self.model.classifier[1] = nn.Linear(in_features=1280, out_features=256, bias=True)
 
     def forward(self, x):
