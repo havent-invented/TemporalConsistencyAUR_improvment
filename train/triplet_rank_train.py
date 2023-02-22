@@ -65,12 +65,21 @@ crop = rng.randint(crop, precrop)
 
 jitter_aug = T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1, hue=0.1)
 rot_aug = T.RandomRotation(degrees=(-30, 30))
-
+hflip_aug = T.RandomHorizontalFlip()
 transformations = Compose([
             Resize((256,256)),
             Pad((24,24,24,24))] + 
-            ([jitter_aug, rot_aug] if args.add_augs else []) 
+            ([jitter_aug, rot_aug, hflip_aug] if args.add_augs else []) 
             + [CenterCrop(precrop),
+            RandomCrop(crop),
+            Resize((256,256)), 
+            ToTensor(),
+            normalize])
+
+transformations_test = Compose([
+            Resize((256,256)),
+            Pad((24,24,24,24))] + 
+            [CenterCrop(precrop),
             RandomCrop(crop),
             Resize((256,256)), 
             ToTensor(),
@@ -200,6 +209,10 @@ if args.scheduler == "CosineAnnealingLR":
 
 
 def train_model(model, epoches):
+
+    #Dataloader augs
+    train_dataset_loader.dataset.dataset.transform = transformations
+
     total_loss = 0
     for i, (batch, label) in enumerate(tqdm(train_dataset_loader)):
         optimizer.zero_grad()
@@ -227,6 +240,10 @@ def train_model(model, epoches):
 
 
 def test_model(model, epoches):
+
+    #Dataloader augs turn off
+    test_dataset_loader.dataset.dataset.transform = transformations_test
+    
     with torch.no_grad():
         total_loss = 0
         sep_acc = np.zeros(10)
