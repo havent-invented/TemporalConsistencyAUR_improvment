@@ -32,9 +32,12 @@ arguments.add_argument('--batch_size', type=int, default=48)
 arguments.add_argument('--num_epoch', type=int, default=50)
 arguments.add_argument('--spacing_size', type=int, default=1)
 arguments.add_argument('--random_seed', type=int, default=123)
-arguments.add_argument('--encoder_arc', type=str, default="resnet18_encoder")
-arguments.add_argument('--optimizer', type=str, default="SGD")
+arguments.add_argument('--encoder_arc', type=str, choices=["swin_v2_t", "resnet18_encoder", "mobilenet_encoder", "densenet121_encoder", "efficientnet_b0", "regnet_x_400mf"], default="resnet18_encoder")
+arguments.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default="SGD")
+arguments.add_argument('--scheduler', type=str, choices=['No', 'CosineAnnealingLR',], default="No")
 arguments.add_argument('--add_augs', type=bool, default=False)
+arguments.add_argument('--image_base_folder', type=str, default="../vox2_crop_fps25/")
+
 args = arguments.parse_args()
 
 
@@ -106,7 +109,7 @@ def tuplet_loss(anchor, close, sequence):
     
 
 torch.manual_seed(args.random_seed)
-combine_sets = CustomDatasetFromImages(transformations, spacing=args.spacing_size, image_base_folder = image_base_folder)
+combine_sets = CustomDatasetFromImages(transformations, spacing=args.spacing_size, image_base_folder = args.image_base_folder)
 train_size = int(0.8 * len(combine_sets))
 test_size = len(combine_sets) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(combine_sets, [train_size, test_size])
@@ -125,9 +128,6 @@ elif args.encoder_arc == "mobilenet_encoder":#2018
     model = mobilenet_encoder()
 elif args.encoder_arc == "densenet121_encoder":#2016
     model = densenet121_encoder()
-
-
-
 
 elif args.encoder_arc == "swin_v2_t":#2022
     model = swin_v2_t_encoder()#efficientnet_b0_encoder, efficientnet_b0_encoder,swin_v2_t_encoder#torchvision.models.swin_v2_t()
@@ -178,7 +178,11 @@ def checkpoint(model, my_save_path, epoch):
 
     torch.save(checkpoint_state, final_save_path)
 
-scheduler = CosineAnnealingLR(optimizer, T_max = args.num_epoch * len(train_dataset_loader), eta_min=0.0001)
+scheduler = None
+if args.scheduler == "CosineAnnealingLR":
+    scheduler = CosineAnnealingLR(optimizer, T_max = args.num_epoch * len(train_dataset_loader), eta_min=0.0001)
+
+
 
 def train_model(model, epoches):
     total_loss = 0
@@ -195,7 +199,8 @@ def train_model(model, epoches):
         loss = tuplet_loss(input_emb, close_emb, far_emb)
         loss.backward()
         optimizer.step()
-        scheduler.step()
+        if scheduler != None:
+            scheduler.step()    
         total_loss += loss.cpu().detach().numpy()
 
     total_loss = total_loss * 1.0 / len(train_dataset_loader)
